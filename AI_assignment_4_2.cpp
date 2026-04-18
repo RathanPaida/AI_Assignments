@@ -1,172 +1,121 @@
-#include <bits/stdc++.h>
+#include<bits/stdc++.h>
 using namespace std;
 
-const int rows = 10;
-const int cols = 20;
-
-/* Grid definition */
-vector<vector<int>> grid = {
-    {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-    {1,0,0,1,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0,1},
-    {1,0,0,1,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0,1},
-    {1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1},
-    {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-    {1,1,1,0,1,1,1,1,0,0,1,1,0,0,0,1,1,1,1,1},
-    {1,0,0,0,0,0,0,1,0,0,1,1,0,0,0,1,0,0,0,1},
-    {1,1,1,1,0,0,0,1,0,0,1,1,0,0,0,1,0,0,0,1},
-    {1,0,0,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1},
-    {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}
+struct node{
+    int x,y;
+    int g;
+    vector<pair<int,int>> path;
 };
 
-pair<int,int> START = {8,4};
-pair<int,int> GOAL  = {4,18};
-
-struct Node {
-    pair<int,int> state;
-    Node* parent;
-    string action;
-    int path_cost;
-
-    Node(pair<int,int> s, Node* p=nullptr, string a="", int c=0)
-        : state(s), parent(p), action(a), path_cost(c) {}
+class priorityqueue{
+    public:
+    vector<node> pq;
+        void push(node n){
+            pq.push_back(n);
+        }
+        node pop(){
+            int minindex=0;
+            for(int i=1;i<pq.size();i++){
+                if(pq[i].g<pq[minindex].g){
+                    minindex=i;
+                }
+            }
+            node best=pq[minindex];
+            pq.erase(pq.begin()+minindex);
+            return best;
+        }
+        bool empty(){
+            return pq.empty();
+        }
 };
 
-/* Manhattan heuristic */
-int heuristic(Node* node) {
-    return abs(node->state.first - GOAL.first) +
-           abs(node->state.second - GOAL.second);
-}
-
-/* Comparator for Greedy Best First Search */
-struct Compare {
-    bool operator()(Node* a, Node* b) {
-        return heuristic(a) > heuristic(b);
-    }
-};
-
-vector<string> ACTIONS(pair<int,int> s) {
-    vector<string> actions;
-    int r = s.first, c = s.second;
-
-    vector<pair<string,pair<int,int>>> moves = {
-        {"Down",{1,0}}, {"Up",{-1,0}}, {"Right",{0,1}}, {"Left",{0,-1}}
+int main(){
+    vector<vector<int>> floor = {
+      // 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}, // 0: Top Wall
+        {1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1}, // 1: "Room" (Left), Offices (Right)
+        {1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1}, // 2: "Room" interior
+        {1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1}, // 3: "Room" interior
+        {1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1}, // 4: Wall separating rooms from hallway
+        {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, // 5: MAIN HALLWAY (Left to Right)
+        {1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1}, // 6: Junction to Entry (Left), Exit Area (Right)
+        {1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1}, // 7: Vertical path to Entry
+        {1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1}, // 8: Entry Area / Exit Stairs
+        {1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1}, // 9: Entry Stairs
+        {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}  // 10: Bottom Wall
     };
+    vector<vector<char>> sol = {
+        {'#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'},
+        {'#', ' ', ' ', ' ', ' ', '#', '#', ' ', ' ', '#', '#', ' ', ' ', '#', '#', ' ', ' ', '#', '#', '#', '#', '#', '#', '#'},
+        {'#', ' ', ' ', ' ', ' ', '#', '#', ' ', ' ', '#', '#', ' ', ' ', '#', '#', ' ', ' ', '#', '#', '#', '#', '#', '#', '#'},
+        {'#', ' ', ' ', ' ', ' ', '#', '#', ' ', ' ', '#', '#', ' ', ' ', '#', '#', ' ', ' ', '#', '#', '#', '#', '#', '#', '#'},
+        {'#', '#', ' ', ' ', '#', '#', '#', '#', ' ', '#', '#', '#', ' ', '#', '#', '#', ' ', '#', '#', '#', '#', '#', '#', '#'},
+        {'#', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '#'},
+        {'#', '#', '#', ' ', ' ', '#', '#', '#', '#', ' ', '#', '#', ' ', ' ', '#', '#', '#', '#', ' ', ' ', ' ', ' ', ' ', '#'},
+        {'#', '#', '#', ' ', ' ', '#', ' ', ' ', ' ', ' ', '#', '#', ' ', ' ', '#', '#', '#', '#', ' ', ' ', ' ', ' ', ' ', '#'},
+        {'#', '#', '#', ' ', ' ', '#', ' ', '#', ' ', ' ', '#', '#', ' ', ' ', '#', '#', '#', '#', ' ', ' ', ' ', ' ', ' ', '#'},
+        {'#', '#', '#', ' ', ' ', '#', ' ', '#', ' ', ' ', '#', '#', ' ', ' ', '#', '#', '#', '#', ' ', ' ', ' ', ' ', ' ', '#'},
+        {'#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'}
+    };
+    int rows=floor.size();
+    int cols=floor[0].size();
+    int sx=9,sy=3;
+    int gx=5,gy=21;
 
-    for (auto &m : moves) {
-        int nr = r + m.second.first;
-        int nc = c + m.second.second;
-        if (nr>=0 && nr<rows && nc>=0 && nc<cols && grid[nr][nc]==0)
-            actions.push_back(m.first);
-    }
-    return actions;
-}
+    vector<vector<bool>> vis(rows,vector<bool>(cols,false));
+    priorityqueue pq;
 
-pair<int,int> RESULT(pair<int,int> s, string action) {
-    if (action=="Down")  return {s.first+1, s.second};
-    if (action=="Up")    return {s.first-1, s.second};
-    if (action=="Right") return {s.first, s.second+1};
-    if (action=="Left")  return {s.first, s.second-1};
-    return s;
-}
-
-Node* BEST_FIRST_SEARCH(int &explored) {
-    priority_queue<Node*, vector<Node*>, Compare> frontier;
-    Node* start = new Node(START);
-    frontier.push(start);
-
-    vector<vector<Node*>> reached(rows, vector<Node*>(cols,nullptr));
-    reached[START.first][START.second] = start;
-
-    explored = 0;
-
-    while (!frontier.empty()) {
-        Node* node = frontier.top();
-        frontier.pop();
-        explored++;
-
-        if (node->state == GOAL)
-            return node;
-
-        for (string action : ACTIONS(node->state)) {
-            pair<int,int> s2 = RESULT(node->state, action);
-            int r = s2.first, c = s2.second;
-
-            Node* child = new Node(s2, node, action, node->path_cost+1);
-
-            if (reached[r][c]==nullptr ||
-                child->path_cost < reached[r][c]->path_cost) {
-                reached[r][c] = child;
-                frontier.push(child);
+    node start;
+    start.x=sx;
+    start.y=sy;
+    start.g = 0;
+    start.path.push_back({sx,sy});
+    pq.push(start);
+    int exp=0;
+    int dx[4]={-1,1,0,0};
+    int dy[4]={0,0,-1,1};
+    cout<<"\n best_first_search evacuation"<<endl;
+    while(!pq.empty()){
+        node curr=pq.pop();
+        exp++;
+        int x=curr.x;
+        int y=curr.y;
+        if(vis[x][y]){
+            continue;
+        }
+        sol[x][y] = '.';
+        vis[x][y]=true;
+        if(x==gx && y==gy){
+            cout<<"evacuation_path"<<endl;
+            for(auto p : curr.path){
+                cout<<"("<<p.first<<","<<p.second<<")";
+                sol[p.first][p.second] = '^';
+            }
+            cout << "\n";
+            for (int i = 0; i < 11; i++) {
+                for (int j = 0; j < 24; j++) {
+                    cout << sol[i][j];
+                }
+                cout << "\n";
+            }
+            cout<<"\ncells explored:"<<exp<<endl;
+            return 0;
+        }
+        for(int i=0;i<4;i++){
+            int nx=x+dx[i];
+            int ny=y+dy[i];
+            if(nx>=0 && nx<rows && ny>=0 && ny<cols){
+                if(!vis[nx][ny] && floor[nx][ny]==0){
+                    node next;
+                    next.x=nx;
+                    next.y=ny;
+                    next.g = curr.g + 1;
+                    next.path=curr.path;
+                    next.path.push_back({nx,ny});
+                    pq.push(next);
+                }
             }
         }
-    }
-    return nullptr;
-}
-
-vector<pair<int,int>> get_path(Node* node) {
-    vector<pair<int,int>> path;
-    while (node) {
-        path.push_back(node->state);
-        node = node->parent;
-    }
-    reverse(path.begin(), path.end());
-    return path;
-}
-
-void print_grid_with_path(vector<pair<int,int>> &path) {
-    set<pair<int,int>> path_set(path.begin(), path.end());
-
-    cout << "\nEvaluated Path on Grid:\n   ";
-    for (int c=0;c<cols;c++) cout << c%10 << " ";
-    cout << "\n";
-
-    for (int r=0;r<rows;r++) {
-        cout << r << "  ";
-        for (int c=0;c<cols;c++) {
-            if (make_pair(r,c)==START) cout << "S ";
-            else if (make_pair(r,c)==GOAL) cout << "E ";
-            else if (path_set.count({r,c})) cout << ". ";
-            else if (grid[r][c]==1) cout << "# ";
-            else cout << "  ";
-        }
-        cout << "\n";
-    }
-}
-
-int main() {
-    int explored;
-    cout << "Starting Greedy Best First Search\n";
-    cout << "Start: (" << START.first << "," << START.second << ")\n";
-    cout << "Goal : (" << GOAL.first  << "," << GOAL.second  << ")\n";
-
-    Node* solution = BEST_FIRST_SEARCH(explored);
-
-    if (solution) {
-        auto path = get_path(solution);
-        cout << "\nGoal Found!\n";
-        cout << "Path Length: " << path.size() << "\n";
-        cout << "Total Cost : " << solution->path_cost << "\n";
-        cout << "Nodes Explored: " << explored << "\n";
-
-        print_grid_with_path(path);
-
-        cout << "\nPath Steps:\n";
-        Node* cur = solution;
-        vector<string> steps;
-        while (cur->parent) {
-            steps.push_back(cur->action);
-            cur = cur->parent;
-        }
-        reverse(steps.begin(), steps.end());
-        for (auto &s: steps) cout << s << "\n";
-
-        cout << "\nHeuristic Justification:\n";
-        cout << "Greedy Best First Search uses f(n)=h(n)\n";
-        cout << "Manhattan distance guides the robot toward the exit\n";
-        cout << "without guaranteeing optimality.\n";
-    }
-    else {
-        cout << "No path found\n";
     }
     return 0;
 }
